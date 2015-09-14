@@ -1,0 +1,42 @@
+* <2015-09-13 Sun> Running dn_sample.tsv
+- Completed scripts ~parallel-macse.sh~ and ~sbatch-macse.sh~.
+  - Added support for bash parameters.
+  - Added usage messages.
+  - Issues in ~parallel-macse.sh~:
+    - Each task output should redirect into separate files in a
+      directory named after the SLURM job ID, since in a single file
+      the output gets all jumbled up.
+      - Need some way of mapping the SLURM job.batch ID to the
+	individual log name.  This is probably the same as ~{#}~ of
+	GNU Parallel.
+      - Create new ~--output-dir~ option for ~parallel-macse.sh~.
+    - joblog is named by the file suffix instead of its prefix.  Need
+      to replace ~##~ with ~%%~ and transpose ~*.~ to ~.*~
+      - Don't fix this bug until all jobs complete successfully.
+- Encountered at least 4 Java OutOfMemory errors.  Added ~java
+  -verbose:gc~ to see last garbage collection attempt before it runs
+  out of memory to get an idea of much memory is available.  But,
+  should first fix the issue of separate log files for this
+  enhancement to be useful.
+#+BEGIN_SRC sh
+# Failed jobs
+$ sacct -s R --brief | grep -v 0:0
+       JobID      State ExitCode
+------------ ---------- --------
+24598.5          FAILED      1:0
+24598.211        FAILED      1:0
+24598.303        FAILED      1:0
+24598.317        FAILED      1:0
+
+# Can check on running jobs with:
+$ sacct -j 24598 --format=jobid,state,elapsed,nodelist | grep -v COMPLETED
+#+END_SRC
+
+* <2015-09-12 Sat> GNU Parallel experimentation
+- Read GNU Parallel man page.
+- Ran GNU Parallel tutorial.
+- Created [[https://www.becat.uconn.edu/wiki/index.php/Parallel_Guide][BECAT wiki guide]] for GNU Parallel.
+- Refactored batch script to use builtin features of GNU Parallel.
+  - Added ~--arg-file~ instead of mapping integers to the tsv rows.
+  - Added ~--header~~ for named column selection.
+  - Got rid of bash functions which were doing these things.
