@@ -41,7 +41,7 @@ parallel="parallel
  --delay 0.2
  --jobs 48
  --joblog parallel-${tsv_no_ext}.log
- --resume
+ --resume-failed
  --arg-file ${TSV_FILE}
  --header :
 "
