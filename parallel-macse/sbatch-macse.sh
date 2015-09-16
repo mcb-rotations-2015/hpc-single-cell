@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Run parallel MACSE on a cluster using the SLURM scheduler.
 
 if ! [ -a "$1" ]; then
