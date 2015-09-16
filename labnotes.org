@@ -1,3 +1,57 @@
+* <2015-09-15 Tue> Remaining dn_sample jobs
+- 3 jobs ran out of memory even with ~java -Xmx4096~.
+- Found bugs in my bash scripts.  Jobs were failing to rerun due to 2
+  reasons:
+  - Need to use ~--resume-failed~ instead of ~--resume~ parameter.
+  - ~module~ program not being loaded.  Needed to use the hacky
+    ~source /etc/profile.d/modules~ line to access the module program.
+    - Why did it work on the previous run?  Probably the shell
+      environment was being read by sbatch, somehow.
+- Found that SLURM on the cluster ignores punishes any memory request:
+  using ~--mem-per-cpu~ parameter for ~sbatch~ and ~srun~ causes jobs
+  to immediately fail with some unable to allocate resource error.
+  Tingyang Xu confirmed that this is because memory control has not
+  been implemented for our system.  Therefore removed that requests
+  parameter from the scheduler options.
+- Learned new behavior of ~sbatch~: One must specify number of number
+  of cpus per node, otherwise it only assigns one CPU in a node.  This
+  should be documented on the BECAT user wiki.
+- Removed ~srun~ from ~parallel-macse.sh~ because using ~srun~ is too
+  limited: it does not allow control of memory or a dynamic view of
+  available cpus.  ~srun~ also limits jobs to 11 GB, whereas more
+  memory is available in the nodes.  The better approach is to
+  architect the script to run on a single node, and then use
+  parallel's intelligence to launch tasks depending on available
+  memory and cpus.
+  - Removing ~srun~ means that One loses the granularity of seeing the
+    jobs in the ~sacct~.  One can instead see progress in ~top~ by
+    finding out the execution node from ~sacct~ and then ssh-ing into
+    the node and running ~top~:
+    : top -M -u $(whoami)
+  - Looking at top was very useful; the memory ~RES~ or resident size
+    for most of the processes stay at about 1G, but one of the
+    processes was at 17G and then grew to 20G (fasta file name
+    ENSFM00250000001272).
+  - Installed htop in my home directory to see the fasta filename,
+    etc.
+  - It probably makes sense to first sort the tsv file by the fasta
+    input file size, to run fast, low-memory jobs first.  Would it be
+    better not to destructively change the tsv file, but operate off
+    of another tsv-sorted file?  Checked out the ENSFM00250000001272
+    pa.fasta file size; it was only 20k compared to 315k of the
+    largest file.  The pg.fasta file is 64k compared to the largest
+    202k
+    : ls -lhSr ~/test*/DN/*/*_pg.fasta
+  - Ideally the java process should know exactly how much memory it
+    needs.  Alternatively, there needs to be an OutOfMemory handler
+    that will re-run a failed task, incrementally increasing the
+    memory as needed.
+
+* <2015-09-14 Mon> Remaining dn_sample jobs
+- Applied Ajay suggestion of -Xmx2048
+- Only 1 job left in the queue; slowness may be from swapping?
+  Reduced requested tasks and reran to complete remaining jobs.
+
 * <2015-09-13 Sun> Running dn_sample.tsv
 - Completed scripts ~parallel-macse.sh~ and ~sbatch-macse.sh~.
   - Added support for bash parameters.
