@@ -34,23 +34,23 @@ done
 tsv_basename=$(basename ${TSV_FILE}) # Remove directories from tsv_file
 tsv_no_ext="${tsv_basename##*.}"     # Strip the extension
 
-# UConn's BECAT cluster usage policy limits us to 48 cpu cores on the
-# standard queue.
+# Optimize for the 16 cores and 128 GB RAM on Ivy Bridge on UConn's
+# BECAT cluster [1].  The delay is to allow enough time for initial memory
+# allocation.
+# 
+# [1] http://www.becat.uconn.edu/wiki/index.php/HPC_Getting_Started#Overview_of_cluster_nodes
 #
 parallel="parallel
- --delay 0.2
- --jobs 48
+ --delay 10
+ --memfree 10G
  --joblog parallel-${tsv_no_ext}.log
  --resume-failed
  --arg-file ${TSV_FILE}
  --header :
 "
-
-srun="srun
- --exclusive
- --nodes=1
- --ntasks=1
-"
+if [ -n "${DRYRUN}" ]; then
+    parallel="${parallel} --dryrun"
+fi
 
 # Make the assumption that the tsv_file is at the root of fasta files.
 # 
@@ -76,10 +76,6 @@ java="java
 
 # Run all the things!
 #
-if [ -n "${DRYRUN}" ]; then
-    parallel="${parallel} --dryrun"
-    ${parallel} ${java}
-else
-    ${parallel} ${srun} ${java}
-fi
+mkdir -p ${tsv_no_ext}
+${parallel} ${java} "> ${tsv_no_ext}/{#}-{family}.log"
 

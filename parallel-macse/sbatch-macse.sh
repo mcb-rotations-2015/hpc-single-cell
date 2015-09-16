@@ -16,7 +16,9 @@ TSV_FILE=$1
 
 sbatch_opts="
  --job-name=$(basename ${TSV_FILE})
- --ntasks=48
+ --partition=IvyBridge
+ --nodes=1
+ --ntasks=6
 "
 
 email=$(git config --global user.email)
