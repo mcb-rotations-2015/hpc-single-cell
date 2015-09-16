@@ -65,6 +65,7 @@ fasta_prefix="${data_dir}/DN/{family}/{family}"
 
 java="java
  -verbose:gc
+ -Xmx20480m
  -jar macse_v1.01b.jar
  -prog alignSequences
  -seq ${fasta_prefix}_pa.fasta.paml
