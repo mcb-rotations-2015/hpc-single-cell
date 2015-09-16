@@ -2,6 +2,10 @@
 
 # Run parallel MACSE on a cluster using the SLURM scheduler.
 
+# Workaround for module programs not being available in SLURM scripts.
+source /etc/profile.d/modules.sh
+module load parallel || { echo "Could not load module 'parallel'!"; exit 1; }
+
 if ! [ -a "$1" ]; then
     echo "Usage: $(basename $0) TSV_FILE"
     echo
