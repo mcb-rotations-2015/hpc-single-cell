@@ -32,7 +32,7 @@ done
 # can check while the job is running with `tail -f JOBLOG`.
 #
 tsv_basename=$(basename ${TSV_FILE}) # Remove directories from tsv_file
-tsv_no_ext="${tsv_basename##*.}"     # Strip the extension
+tsv_no_ext="${tsv_basename%%.*}"     # Strip the extension
 
 # Optimize for the 16 cores and 128 GB RAM on Ivy Bridge on UConn's
 # BECAT cluster [1].  The delay is to allow enough time for initial memory
