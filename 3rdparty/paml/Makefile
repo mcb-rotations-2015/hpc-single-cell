@@ -5,13 +5,6 @@ BIN_DIR := $(TAR_DIR)/bin
 BIN_FILES := baseml basemlg codeml pamp evolver yn00 chi2
 BIN_PATHS := $(addprefix $(SRC_DIR)/,$(BIN_FILES))
 
-install : $(BIN_FILES)
-
-# Link to the binary files from the working directory
-.SECONDEXPANSION:
-$(BIN_FILES) : $(SRC_DIR)/$$@
-	ln -S $@ $<
-
 # Unpack and compile
 $(BIN_PATHS) : $(TARBALL)
 	tar -xvzpf $<
@@ -22,7 +15,6 @@ $(TARBALL) :
 	wget http://abacus.gene.ucl.ac.uk/software/$(TARBALL)
 
 clean :
-	rm -f $(BIN_FILES)
-#rm -rf $(TAR_DIR)
+	rm -f $(BIN_PATHS)
 
-.PHONY : install clean
+.PHONY : clean

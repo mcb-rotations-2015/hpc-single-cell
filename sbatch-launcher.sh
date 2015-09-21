@@ -6,19 +6,15 @@
 source /etc/profile.d/modules.sh
 module load parallel || { echo "Could not load module 'parallel'!"; exit 1; }
 
-if ! [ -a "$1" ]; then
-    echo "Usage: $(basename $0) TSV_FILE"
-    echo
-    echo "\"$1\" is not a TSV_FILE"
+if ! [ -n "$1" ]; then
+    echo "Usage: bash $(basename $0) COMMAND [ARGUMENTS]"
     exit 1
 fi
-TSV_FILE=$1
 
 sbatch_opts="
- --job-name=$(basename ${TSV_FILE})
  --partition=IvyBridge
  --nodes=1
- --ntasks=6
+ --ntasks=16
 "
 
 email=$(git config --global user.email)
@@ -31,4 +27,4 @@ else
       echo "Git user.email is not set; will not send job status e-mails." >&2
 fi
 
-sbatch ${sbatch_opts} ./parallel-macse.sh ${TSV_FILE}
+sbatch ${sbatch_opts} $*

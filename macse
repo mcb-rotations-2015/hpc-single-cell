@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# MACSE [1] is a single-threaded program for aligning sequences.
+# Therefore, to parallelize it, we use GNU Parallel.
+#
+# [1] http://bioweb.supagro.inra.fr/macse/
+
+while [[ $# > 0 ]]; do
+    case "$1" in
+	-f|--file) TSV_FILE="$2"; shift 2;;
+	-d|--directory) DIR_NAME="$2"; shift 2;;
+	--dryrun) DRYRUN=1; shift 1;;
+	*) echo "Usage: macse --file TSV_FILE --directory DIR_NAME [--dryrun]
+
+Parameters:
+-f --file       File with list of datasets to process.
+-d --directory  Relative prefix containing the datasets.
+--dryrun        Print the job to run on stdout, but do not run the job.
+"
+	   exit 1;;
+    esac
+done
+
+# Name the parallel joblog file according to the input file name.
+tsv_basename=$(basename ${TSV_FILE}) # Remove directories from tsv_file
+joblog_name="${tsv_basename%%.*}"     # Strip the extension
+
+# Optimize for the 16 cores and 128 GB RAM on Ivy Bridge on UConn's
+# BECAT cluster [1].  The delay is to allow enough time for initial memory
+# allocation.
+# 
+# Like a Makefile, a joblog prevents multiple runs of the same task,
+# as well as logging excellent statistics about each task, which we
+# can check while the job is running with `tail -f JOBLOG`.
+#
+# [1] http://www.becat.uconn.edu/wiki/index.php/HPC_Getting_Started#Overview_of_cluster_nodes
+#
+parallel="parallel
+ --memfree 10G
+ --joblog log/parallel-${joblog_name}.log
+ --resume-failed
+ --arg-file ${TSV_FILE}
+ --header :
+"
+if [ -n "${DRYRUN}" ]; then
+    parallel="${parallel} --dryrun"
+fi
+
+# Make the assumption that the tsv_file is at the root of fasta files.
+# 
+data_dir=$(dirname ${TSV_FILE})
+
+# We get the {family} column from tsv_file using parallel's
+# `--header`.  Basically, `parallel --header : --arg-file FILE COMMAND
+# {HEADER_NAME}` does the job of `cut` in the shell, but it is
+# infinitely nicer since it uses named fields.
+#
+fasta_prefix="${data_dir}/${DIR_NAME}/{family}/{family}"
+
+macse_jar=macse_v1.01b.jar
+bundled_jar=3rdparty/macse/macse_v1.01b.jar
+if ! [ -e "${macse_jar}" ]; then
+    macse_jar=${bundled_jar}
+fi
+if ! [ -e "${macse_jar}" ]; then
+    echo "Error: Please fetch the macse jar using 'make deps'"
+    exit 1
+fi
+
+java="java
+ -verbose:gc
+ -jar ${macse_jar}
+ -prog alignSequences
+ -seq ${fasta_prefix}_pa.fasta.paml
+ -seq_lr ${fasta_prefix}_pg.fasta.paml
+ -fs_lr 10
+ -stop_lr 10
+"
+
+# Run all the things!  Use lower memory value for smaller jobs, then
+# retry failed jobs with larger memory.
+#
+logs_dir=log/${joblog_name}
+mkdir -p ${logs_dir}
+for mem_mb in 5120 20480; do
+    ${parallel} ${java} -Xmx${mem_mb}m "> ${logs_dir}/{#}-{family}.log"
+done
