@@ -1,3 +1,61 @@
+* <2015-09-21 Mon> Checking job progress
+- Background data 3-day run completed, with a couple that took 1+ days
+  and were killed due to timeout.
+- Need a way to easily record progress of how many jobs are run, and
+  how many are remaining.
+  - There are ~--parallel~ and ~--eta~ options for checking progress,
+    although they would require assigning hostnames for ssh.  This
+    would mean not using ~sbatch~, but ~salloc~ or something
+    else which requires an explicit ~exit~ shell command.
+  - Thus need to confirm a few things:
+    - ~salloc~ sets ~SLURM_JOB_NODELIST~ in expanded rather than
+      compact format (at least ~echo~ the variable).
+    - ~--eta~ outputs progress to stdout recorded by SLURM (the
+      ~slurm-JOBID.out~ file).
+    - Confirm there is information about how many jobs are done vs
+      complete.
+- There is a bug in GNU Parallel 20150810 when using both ~--joblog~
+  and ~--dryrun~ together.  It records the dryrun as successful in the
+  joblog.  Therefore when removing dryrun, the jobs do not actually
+  run since the dryrun simulations are listed in the log as having
+  been successfully ran!  One has to remove the appropriate lines from
+  joblog.
+  - Reported issue on mailing list..
+  - Cloned the Savannah git repository and will look into maybe
+    patching this.
+
+* <2015-09-17 Thu> Background MACSE and PAML
+- Unpacking raw background data exceeds 2G limit of home directory.
+  - Copied tarball of processed data ~results-macse-dn-sample.tar.xz~
+    to lab server home directory (6.4 MB).
+  - Moved data folder to ~/scratch/scratch0/$USER/~
+  - Unpacked tarball of new background data (unpacking seems slower on
+    ~/scratch~).
+- There is a lot of common code between macse and paml execution.  A
+  refactor is needed to:
+  - Share the ~sbatch-*~ script.
+  - Share the parallel section of ~parallel-*~ script.
+  - Pass all sbatch parameters onto the macse/paml.
+  - Reduce the number of folders, and moving scripts to the root
+    directory
+    - Move the dependencies to a root ~3rdparty~ directory.
+    - Create a log with sub-directories for slurm, parallel, macse and
+      paml.
+  - Add Makefile rules for packing and unpacking data.
+- Ran MACSE on background data.
+
+* <2015-09-16 Wed> Makefiles and parallelize PAML
+- Added Makefiles to install MACSE and PAML.
+- Ajay confirmed PAML is also "embarrasingly parallel problem" (single
+  cpu, single thread).  Read PAML documentation to understand purpose
+  of ~.ctl~ files.
+- MACSE fixes:
+  - Fixed joblog naming.
+  - Added loop for fast, low memory run, then high memory for failed,
+    memory-intensive jobs.
+- Submitted background MACSE files onto 2 nodes using 2 submissions.
+  - Jobs failed since the background sequence folder was missing.
+
 * <2015-09-15 Tue> Remaining dn_sample jobs
 - 3 jobs ran out of memory even with ~java -Xmx4096~.
 - Found bugs in my bash scripts.  Jobs were failing to rerun due to 2
