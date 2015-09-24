@@ -39,13 +39,18 @@ tsv_no_ext="${tsv_basename%%.*}"     # Strip the extension
 #
 parallel="parallel
  --memfree 5G
- --arg-file ${TSV_FILE}
  --header :
 "
 if [ -n "${DRYRUN}" ]; then
-    parallel="${parallel} --dryrun"
+    dryrun_tsv_file=dryrun-snippet-$(basename ${TSV_FILE})
+    head ${TSV_FILE} > ${dryrun_tsv_file}
+    parallel="${parallel}
+ --dryrun
+ --arg-file ${dryrun_tsv_file}
+"
 else
     parallel="${parallel}
+ --arg-file ${TSV_FILE}
  --joblog parallel-${tsv_no_ext}-paml.log
  --resume-failed
 "
