@@ -126,8 +126,9 @@ function paml_tasks() {
 	-CONVERT \
 	-OUTPUT=PHYLIP \
 	-OUTFILE=${seq_file}
-    # Run codeml
-    ${codeml_bin} ${ctl_file}
+    # Run codeml pseudo-interactively
+    script -c "${codeml_bin}" ${ctl_file}
+    #${codeml_bin} ${ctl_file}
 }
 export -f paml_tasks
 
