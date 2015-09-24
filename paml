@@ -78,12 +78,12 @@ data_file_prefix="${data_dir_prefix}/{family}/{family}"
 
 # Find the required dependencies
 # 
-codeml_bin=codeml
-codeml_ctl=codeml.ctl
-clustlw_bin=clustalw2
+export codeml_bin=codeml
+export codeml_ctl=codeml.ctl
+export clustalw_bin=clustalw2
 bundled_bin=3rdparty/paml/paml4.8/bin/${codeml_bin}
 bundled_ctl=3rdparty/paml/paml4.8/${codeml_ctl}
-bundled_clustlw=3rdparty/clustalw/bin/${clustlw_bin}
+bundled_clustalw=3rdparty/clustalw/bin/${clustalw_bin}
 if ! [ -e "${codeml_bin}" ]; then
     codeml_bin=${bundled_bin}
     codeml_ctl=${bundled_ctl}
@@ -92,27 +92,26 @@ if ! [ -e "${codeml_bin}" ]; then
     echo "Error: Please fetch and compile codeml and codeml.ctl using 'make deps'"
     exit 1
 fi
-if ! [ -e "${clustlw_bin}" ]; then
-    clustlw_bin=${bundled_clustlw}
+if ! [ -e "${clustalw_bin}" ]; then
+    clustalw_bin=${bundled_clustalw}
 fi
-if ! [ -e "${clustlw_bin}" ]; then
-    echo "Error: Please fetch and compile clustlw using 'make deps'"
+if ! [ -e "${clustalw_bin}" ]; then
+    echo "Error: Please fetch and compile clustalw using 'make deps'"
     exit 1
 fi
 
 # Write the input control file and run codeml on it
 # 
-# Globals: codeml_ctl, dataprefix
+# Globals: codeml_ctl, codeml_bin, clustalw_bin
 # Arguments: 
 #   $1: dataset path with dataset basename
 # Returns: None
 # 
 function paml_tasks() {
     # Assign the control file variables
-    dataset=$(basename $1)
-    seq_file=${dataset}.phylip
-    tree_file=${dataset}.tree.paml
-    out_file=${dataset}.paml.out
+    seq_file=$1.phylip
+    tree_file=$1.tree.paml
+    out_file=$1.paml.out
     ctl_file=$1.ctl
     # Write the control file for codeml, prepending 3 lines
     echo "seqfile = ${seq_file}
@@ -120,7 +119,7 @@ treefile = ${tree_file}
 outfile = ${out_file}" | cat - ${codeml_ctl} > ${ctl_file}
     # Convert macse fasta file to interleaved phylip
     macse_seq_file=$1_pa.fasta_macse_NT.fasta
-    ${clustlw} \
+    ${clustalw_bin} \
 	-INFILE=${macse_seq_file} \
 	-CONVERT \
 	-OUTPUT=PHYLIP \
