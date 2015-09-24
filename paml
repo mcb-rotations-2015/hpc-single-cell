@@ -113,10 +113,12 @@ function paml_tasks() {
     tree_file=$1.tree.paml
     out_file=$1.paml.out
     ctl_file=$1.ctl
-    # Write the control file for codeml, prepending 3 lines
-    echo "seqfile = ${seq_file}
-treefile = ${tree_file}
-outfile = ${out_file}" | cat - ${codeml_ctl} > ${ctl_file}
+    # Write the control file for codeml
+    sed -r \
+	-e "s#(seqfile = ).*#\1${seq_file}#" \
+	-e "s#(treefile = ).*#\1${tree_file}#" \
+	-e "s#(outfile = ).*#\1${out_file}#" \
+	${codeml_ctl} > ${ctl_file}
     # Convert macse fasta file to interleaved phylip
     macse_seq_file=$1_pa.fasta_macse_NT.fasta
     ${clustalw_bin} \
