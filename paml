@@ -37,7 +37,7 @@ done
 # can check while the job is running with `tail -f JOBLOG`.
 #
 tsv_basename=$(basename ${TSV_FILE}) # Remove directories from tsv_file
-tsv_no_ext="${tsv_basename%%.*}"     # Strip the extension
+joblog_name="${tsv_basename%%.*}"     # Strip the extension
 
 # Optimize for the 16 cores and 128 GB RAM on Ivy Bridge on UConn's
 # BECAT cluster [1].  The delay is to allow enough time for initial memory
@@ -59,7 +59,7 @@ if [ -n "${DRYRUN}" ]; then
 else
     parallel="${parallel}
  --arg-file ${TSV_FILE}
- --joblog parallel-${tsv_no_ext}-paml.log
+ --joblog log/parallel-${joblog_name}-paml.log
  --resume-failed
 "
 fi
@@ -132,5 +132,6 @@ export -f paml_tasks
 
 # Run all the things!
 #
-mkdir -p ${tsv_no_ext}
-${parallel} paml_tasks ${data_file_prefix} "> ${tsv_no_ext}/{#}-paml-{family}.log"
+logs_dir=log/${joblog_name}
+mkdir -p ${logs_dir}
+${parallel} paml_tasks ${data_file_prefix} "> ${logs_dir}/{#}-paml-{family}.log 2>&1"
