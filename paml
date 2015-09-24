@@ -67,7 +67,7 @@ fi
 # Make the assumption that the DATA_DIR is at the root of the
 # TSV_FILE directory.
 # 
-data_dir_prefix=$(dirname ${TSV_FILE})/${DATA_DIR}
+data_dir_prefix=$(dirname ${TSV_FILE})/${DIR_NAME}
 
 # We get the {family} column from tsv_file using parallel's
 # `--header`.  Basically, `parallel --header : --arg-file FILE COMMAND
