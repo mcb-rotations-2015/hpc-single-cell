@@ -1,17 +1,25 @@
 #!/bin/bash
 
-# Usage: parallel-*.sh [--dryrun] IN_FILE DATA_DIR
+# PAML [1] is a single-threaded program for phylogenetic analysis.
+# Therefore, to parallelize it, we use GNU Parallel.
 #
-# Options:
-# --dryrun  Print the job to run on stdout, but do not run the job.
-#
+# [1] abacus.gene.ucl.ac.uk/software/paml.html
 
 # Parse all arguments.
 # 
 while [[ $# > 0 ]]; do
     case "$1" in
+	-f|--file) TSV_FILE="$2"; shift 2;;
+	-d|--directory) DIR_NAME="$2"; shift 2;;
 	--dryrun) DRYRUN=1; shift;;
-	*) TSV_FILE="$1"; shift;;
+	*) echo "Usage: paml --file TSV_FILE --directory DIR_NAME [--dryrun]
+
+Parameters:
+-f --file       File with list of datasets to process.
+-d --directory  Relative prefix containing the datasets.
+--dryrun        Print the job to run on stdout, but do not run the job.
+"
+	   exit 1;;
     esac
 done
 
@@ -30,17 +38,15 @@ tsv_no_ext="${tsv_basename%%.*}"     # Strip the extension
 # [1] http://www.becat.uconn.edu/wiki/index.php/HPC_Getting_Started#Overview_of_cluster_nodes
 #
 parallel="parallel
- --memfree 10G
+ --memfree 5G
  --arg-file ${TSV_FILE}
  --header :
 "
 if [ -n "${DRYRUN}" ]; then
-    parallel="${parallel}
- --dryrun
-"
+    parallel="${parallel} --dryrun"
 else
     parallel="${parallel}
- --joblog parallel-${tsv_no_ext}.log
+ --joblog parallel-${tsv_no_ext}-paml.log
  --resume-failed
 "
 fi
@@ -48,29 +54,70 @@ fi
 # Make the assumption that the DATA_DIR is at the root of the
 # TSV_FILE directory.
 # 
-data_prefix=$(dirname ${TSV_FILE})/${DATA_DIR}
+data_dir_prefix=$(dirname ${TSV_FILE})/${DATA_DIR}
 
 # We get the {family} column from tsv_file using parallel's
 # `--header`.  Basically, `parallel --header : --arg-file FILE COMMAND
 # {HEADER_NAME}` does the job of `cut` in the shell, but it is
 # infinitely nicer since it uses named fields.
 #
-fasta_prefix="${data_prefix}/{family}/{family}"
+data_file_prefix="${data_dir_prefix}/{family}/{family}"
 
-# Code for paml starts here.
+# Find the required dependencies
 # 
-# PAML [1] is a single-threaded program for phylogenetic analysis.
-# Therefore, to parallelize it, we use GNU Parallel.
-#
-# [1] abacus.gene.ucl.ac.uk/software/paml.html
+codeml_bin=codeml
+codeml_ctl=codeml.ctl
+clustlw_bin=clustalw2
+bundled_bin=3rdparty/paml/paml4.8/bin/${codeml_bin}
+bundled_ctl=3rdparty/paml/paml4.8/${codeml_ctl}
+bundled_clustlw=3rdparty/clustalw/bin/${clustlw_bin}
+if ! [ -e "${codeml_bin}" ]; then
+    codeml_bin=${bundled_bin}
+    codeml_ctl=${bundled_ctl}
+fi
+if ! [ -e "${codeml_bin}" ]; then
+    echo "Error: Please fetch and compile codeml and codeml.ctl using 'make deps'"
+    exit 1
+fi
+if ! [ -e "${clustlw_bin}" ]; then
+    clustlw_bin=${bundled_clustlw}
+fi
+if ! [ -e "${clustlw_bin}" ]; then
+    echo "Error: Please fetch and compile clustlw using 'make deps'"
+    exit 1
+fi
 
-${fasta_prefix}_pa.fasta_macse_NT.fasta
+# Write the input control file and run codeml on it
+# 
+# Globals: codeml_ctl, dataprefix
+# Arguments: 
+#   $1: dataset path with dataset basename
+# Returns: None
+# 
+function paml_tasks() {
+    # Assign the control file variables
+    dataset=$(basename $1)
+    seq_file=${dataset}.phylip
+    tree_file=${dataset}.tree.paml
+    out_file=${dataset}.paml.out
+    ctl_file=$1.ctl
+    # Write the control file for codeml, prepending 3 lines
+    echo "seqfile = ${seq_file}
+treefile = ${tree_file}
+outfile = ${out_file}" | cat - ${codeml_ctl} > ${ctl_file}
+    # Convert macse fasta file to interleaved phylip
+    macse_seq_file=$1_pa.fasta_macse_NT.fasta
+    ${clustlw} \
+	-INFILE=${macse_seq_file} \
+	-CONVERT \
+	-OUTPUT=PHYLIP \
+	-OUTFILE=${seq_file}
+    # Run codeml
+    ${codeml_bin} ${ctl_file}
+}
+export -f paml_tasks
 
-paml="
-"
-
-# Run all the things!  Use lower memory value for smaller jobs, then
-# retry failed jobs with larger memory.
+# Run all the things!
 #
 mkdir -p ${tsv_no_ext}
-${parallel} ${paml} "> ${tsv_no_ext}/{#}-{family}.log"
+${parallel} paml_tasks ${data_file_prefix} "> ${tsv_no_ext}/{#}-paml-{family}.log"
