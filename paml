@@ -6,12 +6,17 @@
 # [1] abacus.gene.ucl.ac.uk/software/paml.html
 
 function usage() {
-    echo "Usage: paml --file TSV_FILE --directory DIR_NAME [--dryrun]"
-    echo ""
-    echo "Parameters:"
-    echo "-f --file       File with list of datasets to process."
-    echo "-d --directory  Relative prefix containing the datasets."
-    echo "--dryrun        Print the job to run on stdout, but do not run the job."
+    echo -e "
+Usage: paml --file TSV_FILE --directory DIR_NAME [--dryrun]
+           [--shortrun] [--rerun-all]
+
+Parameters:
+-f --file       File with list of datasets to process.
+-d --directory  Relative prefix containing the datasets.
+--dryrun        Print the job to run on stdout, but do not run the job.
+--shortrun      Run the first 9 entries.
+--rerun-all     Rerun all jobs instead of resuming by deleting joblog.
+"
 }
 
 if [[ $# -eq 0 ]]; then
@@ -26,6 +31,8 @@ while [[ $# > 0 ]]; do
 	-f|--file) TSV_FILE="$2"; shift 2;;
 	-d|--directory) DIR_NAME="$2"; shift 2;;
 	--dryrun) DRYRUN=1; shift;;
+	--shortrun) SHORTRUN=1; shift;;
+	--rerun-all) RERUN=1; shift;;
 	*) usage
 	   exit 1;;
     esac
@@ -38,6 +45,10 @@ done
 #
 tsv_basename=$(basename ${TSV_FILE}) # Remove directories from tsv_file
 joblog_name="${tsv_basename%%.*}"     # Strip the extension
+joblog=log/parallel-${joblog_name}-paml.log
+if [ -n "${RERUN}" ]; then
+    rm -f ${joblog}
+fi
 
 # Optimize for the 16 cores and 128 GB RAM on Ivy Bridge on UConn's
 # BECAT cluster [1].  The delay is to allow enough time for initial memory
@@ -56,10 +67,16 @@ if [ -n "${DRYRUN}" ]; then
  --dryrun
  --arg-file ${dryrun_tsv_file}
 "
+elif [ -n "${SHORTRUN}" ]; then
+    dryrun_tsv_file=dryrun-snippet-$(basename ${TSV_FILE})
+    head ${TSV_FILE} > ${dryrun_tsv_file}
+    parallel="${parallel}
+ --arg-file ${dryrun_tsv_file}
+"
 else
     parallel="${parallel}
  --arg-file ${TSV_FILE}
- --joblog log/parallel-${joblog_name}-paml.log
+ --joblog ${joblog}
  --resume-failed
 "
 fi
