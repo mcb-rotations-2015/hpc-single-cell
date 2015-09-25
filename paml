@@ -96,14 +96,11 @@ data_file_prefix="${data_dir_prefix}/{family}/{family}"
 # Find the required dependencies
 # 
 export codeml_bin=codeml
-export codeml_ctl=codeml.ctl
 export clustalw_bin=clustalw2
 bundled_bin=3rdparty/paml/paml4.8/bin/${codeml_bin}
-bundled_ctl=3rdparty/paml/paml4.8/${codeml_ctl}
 bundled_clustalw=3rdparty/clustalw/bin/${clustalw_bin}
 if ! [ -e "${codeml_bin}" ]; then
     codeml_bin=${bundled_bin}
-    codeml_ctl=${bundled_ctl}
 fi
 if ! [ -e "${codeml_bin}" ]; then
     echo "Error: Please fetch and compile codeml and codeml.ctl using 'make deps'"
@@ -119,7 +116,7 @@ fi
 
 # Write the input control file and run codeml on it
 # 
-# Globals: codeml_ctl, codeml_bin, clustalw_bin
+# Globals: codeml_bin, clustalw_bin
 # Arguments: 
 #   $1: dataset path with dataset basename
 # Returns: None
@@ -130,19 +127,27 @@ function paml_tasks() {
     tree_file=$1.tree.paml
     out_file=$1.paml.out
     ctl_file=$1.ctl
+    codeml_ctl=3rdparty/paml/codeml.ctl
     # Write the control file for codeml
-    sed -r \
-	-e "s#(seqfile = ).*#\1${seq_file}#" \
-	-e "s#(treefile = ).*#\1${tree_file}#" \
-	-e "s#(outfile = ).*#\1${out_file}#" \
-	${codeml_ctl} > ${ctl_file}
-    # Convert macse fasta file to interleaved phylip
+    echo -e "seqfile = ${seq_file}
+treefile = ${tree_file}
+outfile = ${out_file}" \
+	| cat - ${codeml_ctl} > ${ctl_file}
+    # Replace the exclamation marks from macse fasta with dashes as
+    # this creates EOF errors downstream with codeml
     macse_seq_file=$1_pa.fasta_macse_NT.fasta
+    sed -i "s/!/-/g" ${macse_seq_file}
+    # Convert macse fasta file to interleaved phylip
     ${clustalw_bin} \
 	-INFILE=${macse_seq_file} \
 	-CONVERT \
 	-OUTPUT=PHYLIP \
 	-OUTFILE=${seq_file}
+    # Make the PHYLIP file format readable by codeml, by adding 'I' to
+    # the first line to mark it as interleaved, and replacing tabs with
+    # spaces
+    sed -i -r "1 s#(^.*$)#\1 I#" ${seq_file}
+    sed -i "s/\t/ /g" ${seq_file}
     # Run codeml
     echo ${ctl_file} | ${codeml_bin}
 }
